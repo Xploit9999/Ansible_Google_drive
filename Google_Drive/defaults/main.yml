@@ -1,0 +1,9 @@
+---
+# defaults file for Google_Drive
+descargar: false
+subir: false
+eliminar: false
+tipo: 'archivo'
+ext: ""
+archivo: ""
+ruta: ""

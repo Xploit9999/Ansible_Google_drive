@@ -1,0 +1,23 @@
+---
+- block:
+
+  - name: Obtener nuevo token de acceso
+    uri:
+      url: https://oauth2.googleapis.com/token
+      method: POST
+      body: "client_id={{ client_id }}&client_secret={{ client_secret }}&refresh_token={{ refresh_token }}&grant_type=refresh_token"
+      headers:
+        Content-Type: "application/x-www-form-urlencoded"
+      return_content: yes
+    register: nuevo_token
+
+  - set_fact:
+      access_token: "{{ nuevo_token.json.access_token }}"
+
+  rescue:
+
+  - debug:
+      msg: "[X] No se pudo generar el access token, por favor validar el estado del refresh token."
+
+  - meta: end_play
+...

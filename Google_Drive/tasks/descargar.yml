@@ -1,0 +1,61 @@
+---
+- name: Google Drive | Descargar | Lista los archivos alojados en mi drive
+  uri:
+    url: "https://www.googleapis.com/drive/v3/files?fields=files(name)"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ access_token }}"
+    return_content: true
+  register: archivos
+
+- name: Google Drive | Descargar | Encuentra archivos especificos según la extensión a buscar
+  set_fact:
+    encontrar: "{{ item.files | map(attribute='name') | select('match', '.*\\.' + ext) }}"
+  no_log: true
+  loop:
+    - "{{ archivos.content }}"
+
+- name: Google Drive | Descargar | Error controlado si no se encuentra archivos con la extensión a consultar
+  fail:
+    msg: "No se encontro ningun archivo con la extensión a consultar"
+  when: encontrar | length <  1
+
+- name: Google Drive | Descargar | Se crea arreglo para query de busqueda sobre los archivos encontrados con su extensión
+  set_fact:
+    query: "{{ query + 'name=' + quotes + item + quotes + ' ' + 'or' + ' ' }}"
+  loop: "{{ encontrar }}"
+  no_log: true
+  vars:
+    quotes: "'"
+    query: ""
+
+- set_fact:
+    query: "{{ query[:-4] }}"
+
+- name: Google Drive | Descargar | Se obtiene id de los archivos que fueron encontrados previamente por su extensión en especifico
+  uri:
+    url: "https://www.googleapis.com/drive/v3/files?q={{ query | urlencode }}&fields=files(id,name)"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ access_token }}"
+    return_content: true
+  register: id_descargar
+  no_log: true
+
+- name: Google Drive | Descargar | Se Descargan archivos
+  get_url:
+    url: "https://www.googleapis.com/drive/v3/files/{{ item.id }}?alt=media"
+    dest: /tmp/{{ item.name }}
+    headers:
+      Authorization: "Bearer {{ access_token }}"
+  register: descarga
+  no_log: true
+  loop: "{{ id_descargar.json.files }}"
+
+- name: Google Drive | Descargar | Mensaje SI la Descarga fue exitosa
+  debug:
+    msg: "Archivos descargados exitosamente: {{ archivos_descargados | join(', ') }}"
+  when: archivos_descargados | length > 0
+  vars:
+    archivos_descargados: "{{ descarga.results | selectattr('status_code', 'equalto', 200) | map(attribute='item.name') | list }}"
+...
