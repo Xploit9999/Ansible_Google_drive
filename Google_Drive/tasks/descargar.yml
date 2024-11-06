@@ -8,6 +8,9 @@
     return_content: true
   register: archivos
 
+- debug:
+    var: archivos
+
 - name: Google Drive | Descargar | Encuentra archivos especificos según la extensión a buscar
   set_fact:
     encontrar: "{{ item.files | map(attribute='name') | select('match', '.*\\.' + ext) }}"
@@ -45,7 +48,7 @@
 - name: Google Drive | Descargar | Se Descargan archivos
   get_url:
     url: "https://www.googleapis.com/drive/v3/files/{{ item.id }}?alt=media"
-    dest: /tmp/{{ item.name }}
+    dest: "{{ destino }}/{{ item.name }}"
     headers:
       Authorization: "Bearer {{ access_token }}"
   register: descarga

@@ -1,4 +1,14 @@
 ---
+- name: Google Drive | Subida | Valida si la ruta local existe
+  stat:
+    path: "{{ ruta }}"
+  register: validacion
+
+- name: Google Drive | Subida | Error controlado en caso de que la ruta ingresa no exista.
+  fail:
+    msg: "[x] La ruta {{ ruta }} no existe en el equipo local, por favor verificar."
+  when: not validacion.stat.exists
+
 - name: Google Drive | Subida | Encuentra todos los archivos en un directorio en especifico
   find:
     paths: "{{ ruta }}"
@@ -30,6 +40,7 @@
     status_code: 200
     return_content: true
   register: subida
+  changed_when: true
   no_log: true
   loop: "{{ archivos.files }}"
 

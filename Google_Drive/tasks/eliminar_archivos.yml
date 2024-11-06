@@ -1,0 +1,50 @@
+---
+- name: Google Drive | Se crea arreglo para query de busqueda sobre los archivos a eliminar
+  set_fact:
+    query: "{{ query + 'name=' + quotes + item + quotes + ' ' + 'or' + ' ' }}"
+  loop: "{{ archivo }}"
+  no_log: true
+  vars:
+    quotes: "'"
+    query: ""
+
+- set_fact:
+    query: "{{ query[:-4] }}"
+
+- name: Google Drive | Se obtiene id de los archivos ha eliminar
+  uri:
+    url: "https://www.googleapis.com/drive/v3/files?q={{ query | urlencode }}&fields=files(id,name)"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ access_token }}"
+    return_content: true
+  register: id_eliminar
+  no_log: true
+
+- name: Google Drive | Eliminar | Se realiza eliminación del archivo
+  uri:
+    url: "https://www.googleapis.com/drive/v3/files/{{ item.id }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ access_token }}"
+    status_code: 204
+  loop: "{{ id_eliminar.json.files }}"
+  changed_when: true
+  no_log: true
+  ignore_errors: true
+  register: ejecucion
+
+- name: Google Drive | Eliminar | Confirmación de eliminación de archivo exitosa
+  debug:
+    msg: "Archivos eliminados exitosamente: {{ archivos_eliminados | join(', ') }}"
+  when: archivos_eliminados | length > 0
+  vars:
+    archivos_eliminados: "{{ ejecucion.results | selectattr('status', 'equalto', 204) | map(attribute='item.name') | list }}"
+
+- name: Google Drive | Eliminar | Error controlado si se detecta problemas de permisos al eliminar archivo(s)
+  fail:
+    msg: "No se pudo eliminar el/os siguientes archivos por temas de permisos: {{ archivos_error | join(', ') }}"
+  when: archivos_error | length > 0
+  vars:
+    archivos_error: "{{ ejecucion.results | selectattr('status', 'equalto', 403) | map(attribute='item.name') | list }}"
+...
