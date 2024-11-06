@@ -1,0 +1,94 @@
+---
+- block:
+  - name: Google Drive | JWT | Obtiene fact en especifico
+    setup:
+      gather_subset:
+        - '!all'
+        - '!min'
+        - date_time
+    async: 300
+    poll: 1 
+
+  - name: Google Drive | JWT | Inspecciona info
+    slurp:
+      src: "{{ archivo_info }}"
+    register: contenido
+
+  - name: Google Drive | JWT | Modela info y fecha
+    set_fact:
+      info: "{{ contenido.content | b64decode }}"
+      now: "{{ ansible_date_time.epoch | int }}"
+
+  - name: Google Drive | JWT | Modela JWT header y payload
+    set_fact:
+      header: |
+        {
+          "alg": "RS256",
+          "typ": "JWT"
+        }
+      payload: |
+        {
+          "iss": "{{ info.client_email }}", 
+          "scope": "{{ alcance }}",
+          "aud": "{{ token_url }}",
+          "exp": {{ (now|int + expiracion|int) | int }},
+          "iat": {{ now }}
+        }
+
+  - name: Google Drive | JWT | Codifica header y payload y lo termina de modelar.
+    set_fact:
+      token: >-
+          {{ 
+            header | b64encode 
+            | replace('+', '-') 
+            | replace('/', '_') 
+            | replace('=', '')  + '.' + 
+            payload | b64encode 
+            | replace('+', '-') 
+            | replace('/', '_') 
+            | replace('=', '') 
+          }}
+
+  - name: Google Drive | JWT | Firma codificación del header y payload
+    openssl_sign:
+      content: "{{ token }}"
+      algorithm: sha256
+      privatekey: "{{ llave_privada }}"
+      signed_with: dgst
+    register: token_firmado 
+
+  - name: Google Drive | JWT | Modela firma
+    set_fact:
+      firma: >-
+        {{ 
+          token_firmado.sig 
+          | regex_replace('\\+', '-') 
+          | regex_replace('/', '_') 
+          | regex_replace('=+$', '') 
+        }}
+
+  - name: Google Drive | JWT | Se unifica Header, payload y firma
+    set_fact:
+      token_completo: "{{ token }}.{{ firma }}" 
+
+  - name: Google Drive | JWT | Intercambiar JWT por token de acceso
+    uri:
+      url: "{{ token_url }}"
+      method: POST
+      headers:
+        Content-Type: "application/x-www-form-urlencoded"
+      body: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion={{ token_completo }}"
+      return_content: yes
+    register: access_token_response
+
+  - set_fact:
+      access_token: "{{ access_token_response.json.access_token }}"
+
+  rescue:
+
+  - name: Google Drive | JWT | Error controlado en caso de que el proceso falle.
+    fail:
+      msg: "[X] No se pudo generar el jwt, por favor revisar la información suministrada y la llave privada."
+
+  - meta: end_play
+...
