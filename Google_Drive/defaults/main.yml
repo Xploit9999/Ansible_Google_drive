@@ -4,6 +4,13 @@ descargar: false
 subir: false
 eliminar: false
 tipo: 'archivo'
+usar_jwt: false
+usar_refresh_token: false
 ext: ""
 archivo: ""
 ruta: ""
+alcance: "https://www.googleapis.com/auth/drive"
+token_url: "https://oauth2.googleapis.com/token"
+archivo_info: ""
+llave_privada: ""
+expiracion: 3600
