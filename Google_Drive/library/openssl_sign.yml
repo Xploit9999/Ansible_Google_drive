@@ -1,0 +1,64 @@
+---
+module: openssl_sign
+short_description: Sign content or files using OpenSSL
+description:
+  - This module allows you to sign a text string or file using a specified hashing algorithm and private key with OpenSSL.
+  - It supports two signing methods: C(dgst) and C(pkeyutl), and outputs the signature in base64 format.
+options:
+  content:
+    description:
+      - A string of text to sign.
+      - Must be provided as plain text and not as a file path.
+    required: false
+    type: str
+  path:
+    description:
+      - The path to a file containing content to sign.
+      - Cannot be used at the same time as I(content).
+    required: false
+    type: str
+  algorithm:
+    description:
+      - The hashing algorithm to use for signing.
+      - Supported algorithms are C(sha1), C(sha224), C(sha256), C(sha384), C(sha512), and C(md5).
+    required: true
+    type: str
+  privatekey:
+    description:
+      - Path to the private key file used for signing.
+    required: true
+    type: str
+  signed_with:
+    description:
+      - The OpenSSL command to use for signing.
+      - Accepts either C(dgst) or C(pkeyutl). Defaults to C(dgst).
+    required: false
+    type: str
+    choices: [ 'dgst', 'pkeyutl' ]
+    default: 'dgst'
+author:
+  - John Freidman (@Xploit9999)
+notes:
+  - Either I(content) or I(path) must be provided for signing, but not both.
+  - The module requires OpenSSL to be installed on the target machine.
+  - This module only performs a signing operation and does not change the system state.
+examples:
+  - name: Sign a string with sha256 using dgst
+    openssl_sign:
+      content: "This is my content to sign"
+      algorithm: "sha256"
+      privatekey: "/path/to/private_key.pem"
+
+  - name: Sign a file with sha512 using pkeyutl
+    openssl_sign:
+      path: "/path/to/file_to_sign.txt"
+      algorithm: "sha512"
+      privatekey: "/path/to/private_key.pem"
+      signed_with: "pkeyutl"
+
+  - name: Sign a string with md5 using dgst
+    openssl_sign:
+      content: "Sign this text"
+      algorithm: "md5"
+      privatekey: "/path/to/private_key.pem"
+...
