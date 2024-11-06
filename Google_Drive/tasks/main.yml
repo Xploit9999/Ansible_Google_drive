@@ -1,7 +1,12 @@
 ---
 # tasks file for Google_Drive
-- name: Google Drive | Genera access token
+- name: Google Drive | Genera access token (Refresh_token)
   include_tasks: generar_token.yml
+  when: usar_refresh_token | bool
+
+- name: Google Drive | Genera access token (JWT)
+  include_tasks: generar_jwt.yml
+  when: usar_jwt | bool
 
 - name: Google Drive | Descargar archivos
   include_tasks: descargar.yml
