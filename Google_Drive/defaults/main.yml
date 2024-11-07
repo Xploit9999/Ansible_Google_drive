@@ -2,6 +2,8 @@
 # defaults file for Google_Drive
 descargar: false
 subir: false
+es_directorio: false
+es_archivo: false
 eliminar: false
 tipo: 'archivo'
 usar_jwt: false
