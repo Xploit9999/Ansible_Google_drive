@@ -1,5 +1,6 @@
 ---
 - block:
+  - include_vars: "{{ info_cuenta }}"
 
   - name: Obtener nuevo token de acceso
     uri:
