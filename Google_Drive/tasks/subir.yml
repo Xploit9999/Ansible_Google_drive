@@ -9,45 +9,11 @@
     msg: "[x] La ruta {{ ruta }} no existe en el equipo local, por favor verificar."
   when: not validacion.stat.exists
 
-- name: Google Drive | Subida | Encuentra todos los archivos en un directorio en especifico
-  find:
-    paths: "{{ ruta }}"
-    file_type: file
-    recurse: false
-  register: archivos
+- name: Google Drive | Subida | Subir archivos en un directorio
+  include_tasks: subir_directorio.yml
+  when: es_directorio | bool
 
-- name: Google Drive | Subida | Sube los archivos
-  uri:
-    url: "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ access_token }}"
-      Content-Type: multipart/related; boundary="EOF"
-    body: |
-      --EOF
-      Content-Type: application/json; charset=UTF-8
-
-      {
-        "name": "{{ item.path | basename }}"
-      }
-
-      --EOF
-      Content-Type: "{{ lookup('pipe', 'file --mime-type -b ' ~ item.path) }}"
-
-      {{ lookup('file', item.path) }}
-
-      --EOF--
-    status_code: 200
-    return_content: true
-  register: subida
-  changed_when: true
-  no_log: true
-  loop: "{{ archivos.files }}"
-
-- name: Google Drive | Subida | Mensaje SI la Descarga fue exitosa
-  debug:
-    msg: "Archivos subidos exitosamente: {{ archivos_subidos | join(', ') }}"
-  when: archivos_subidos | length > 0
-  vars:
-    archivos_subidos: "{{ subida.results | selectattr('status', 'equalto', 200) | map(attribute='json.name') | list }}"
+- name: Google Drive | Subida | Subir archivos o lista de archivos
+  include_tasks: subir_archivos.yml
+  when: es_archivo | bool 
 ...

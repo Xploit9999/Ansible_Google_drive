@@ -1,0 +1,23 @@
+---
+- set_fact:
+    lista_archivos: "{{ lista_archivos | default([]) + [item] }}"
+  changed_when: true
+  notify: "Google Drive | Subida | Sube los archivos"
+  no_log: false 
+  loop: "{{ ruta }}"
+  when: >
+    ( ruta is not mapping ) and ( ruta is not string ) 
+    and ( ruta is iterable )
+
+- meta: flush_handlers
+
+- set_fact:
+    lista_archivos: ["{{ ruta }}"]
+  changed_when: true
+  notify: "Google Drive | Subida | Sube los archivos"
+  no_log: false 
+  when: ruta is string
+
+- meta: flush_handlers
+
+...
