@@ -26,5 +26,5 @@
   register: subida
   changed_when: true
   no_log: true
-  loop: "{{ lista_archivos }}"
+  loop: "{{ archivos_validados }}"
 ...
