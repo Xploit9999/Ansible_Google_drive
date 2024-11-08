@@ -1,23 +1,69 @@
 ---
-- set_fact:
-    lista_archivos: "{{ lista_archivos | default([]) + [item] }}"
-  changed_when: true
-  notify: "Google Drive | Subida | Sube los archivos"
-  no_log: false 
-  loop: "{{ ruta }}"
-  when: >
-    ( ruta is not mapping ) and ( ruta is not string ) 
-    and ( ruta is iterable )
+- name: Google Drive | Subida | Valida si la ruta es un directorio
+  set_fact:
+    carpeta: "{{ 'true' if ruta | regex_search('/$') else 'false' }}"
 
-- meta: flush_handlers
+- block:
+  - name: Google Drive | Subida | Valida si es uno o mas archivos para subir.
+    set_fact:
+      lista_archivos: >-
+        {%- if ruta is string -%}
+          ["{{ ruta }}"]
+        {%- elif ruta is not mapping and ruta is not string and ruta is iterable -%}
+          {{ ruta }}
+        {% endif %}
 
-- set_fact:
-    lista_archivos: ["{{ ruta }}"]
-  changed_when: true
-  notify: "Google Drive | Subida | Sube los archivos"
-  no_log: false 
-  when: ruta is string
+  - name: Google Drive | Subida | Valida si la ruta local existe
+    stat:
+      path: "{{ item }}"
+    register: validacion
+    loop: "{{ lista_archivos }}"
 
-- meta: flush_handlers
+  - name: Google Drive | Subida | Separa archivos que existen y los que no existen según previamente validado
+    set_fact:
+      archivos_validados: "{{ archivos_existentes | default([]) }}"
+      archivos_invalidos: "{{ archivos_no_existentes | default([]) }}"
+    changed_when: archivos_existentes | length > 0
+    notify: "Google Drive | Subida | Sube los archivos"
+    vars:
+      archivos_existentes: "{{ validacion.results | selectattr('stat.exists', 'equalto', true) | map(attribute='item') | list }}"
+      archivos_no_existentes: "{{ validacion.results | selectattr('stat.exists', 'equalto', false) | map(attribute='item') | list }}"
 
+  - meta: flush_handlers
+
+  - name: Google Drive | Subida | Archivos que no se subieron porque no existen en la ruta local
+    debug:
+      msg: "[x] Los siguientes archivos no se encontraron localmente. Por favor validar.  {{ archivos_no_existentes }}"
+    when: archivos_invalidos | length > 0
+
+  when: not carpeta | bool
+
+- block:
+  - name: Google Drive | Subida | Encuentra todos los archivos en un directorio en especifico
+    find:
+      paths: "{{ ruta }}"
+      file_type: file
+      recurse: false
+    register: archivos
+    no_log: true
+
+  - name: Google Drive | Subida | Almacena archivos encontrados en la carpeta ingresada
+    set_fact:
+      archivos_validados: "{{ archivos_validados | default([]) + item | map(attribute='path') }}"
+    changed_when: true
+    notify: "Google Drive | Subida | Sube los archivos"
+    no_log: true
+    loop:
+      - "{{ archivos.files }}"
+
+  - meta: flush_handlers
+
+  when: carpeta | bool
+
+- name: Google Drive | Subida | Mensaje SI la subida fue exitosa
+  debug:
+    msg: "Archivos subidos exitosamente: {{ archivos_subidos | join(', ') }}"
+  when: archivos_subidos | length > 0
+  vars:
+    archivos_subidos: "{{ subida.results | selectattr('status', 'equalto', 200) | map(attribute='json.name') | list }}"
 ...
