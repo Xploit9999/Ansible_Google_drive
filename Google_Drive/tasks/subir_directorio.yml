@@ -1,2 +1,38 @@
 ---
+- name: Google Drive | Subida | Se crea carpeta padre en Google Drive
+  uri:
+    url: "https://www.googleapis.com/drive/v3/files"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ access_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      name: "{{ ruta | basename }}"
+      mimeType: "application/vnd.google-apps.folder"
+  register: directorio_principal
+
+- name: Google Drive | Subida | Verificar si se obtuvo el ID de la carpeta principal
+  fail:
+    msg: "No se pudo obtener el ID de la carpeta principal"
+  when: directorio_principal.json.id is not defined
+
+- name: Google Drive | Subida | Encontrar archivos todos los archivos de la carpeta a subir
+  find:
+    paths: "{{ ruta }}"
+    recurse: false
+    file_type: file
+  register: archivos
+
+- name: Google Drive | Subida | Almacena archivos encontrados en la carpeta ingresada
+  set_fact:
+    archivos_validados: "{{ archivos_validados | default([]) + item | map(attribute='path') }}"
+  changed_when: true
+  notify: "Google Drive | Subida | Sube los archivos"
+  no_log: true
+  loop:
+    - "{{ archivos.files }}"
+
+- meta: flush_handlers
+
 ...
